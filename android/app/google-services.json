@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "293411020526",
+    "project_id": "marihan-todo-app",
+    "storage_bucket": "marihan-todo-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:293411020526:android:bc2451f78907509ee81dff",
+        "android_client_info": {
+          "package_name": "com.example.todo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzAweIEZqhqnW8FwwEjhP3aP0nymeLE3c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
