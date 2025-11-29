@@ -14,7 +14,7 @@ class TodoForm extends StatefulWidget {
 }
 
 class _TodoFormState extends State<TodoForm> {
-  late TextEditingController titleCtrl;
+  late TextEditingController titleCtrl;// late Because the controller is initialized in initState, not at declaration
   late TextEditingController descCtrl;
   DateTime? due;
 
@@ -22,9 +22,9 @@ class _TodoFormState extends State<TodoForm> {
   void initState() {
     super.initState();
     titleCtrl = TextEditingController(text: widget.existing?["title"]);
-    descCtrl = TextEditingController(text: widget.existing?["desc"]);
+    descCtrl = TextEditingController(text: widget.existing?["desc"]);//initialize description controller
     if (widget.existing?["due"] != null) {
-      due = DateTime.fromMillisecondsSinceEpoch(widget.existing!["due"]);
+      due = DateTime.fromMillisecondsSinceEpoch(widget.existing!["due"]); 
     }
   }
 
@@ -44,9 +44,9 @@ class _TodoFormState extends State<TodoForm> {
 
           ),
         ),
-        content: SingleChildScrollView(
+        content: SingleChildScrollView( //to avoid overflow when keyboard appears
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,//align to left
             children: [
               // TITLE
               TextField(
@@ -81,41 +81,41 @@ class _TodoFormState extends State<TodoForm> {
               ),
               SizedBox(height: h * 0.015),
 
-              // DATE ROW
+              //Date Picker
               Row(
-                children: [
-                  Icon(Icons.calendar_month, color: pastelBlueDark, size: w * 0.06),
+                children: [ //row for date icon, selected date text, and pick date button
+                  Icon(Icons.calendar_month, color: pastelBlueDark, size: w * 0.06),//calendar icon
                   SizedBox(width: w * 0.02),
-                  Expanded(
+                  Expanded(//
                     child: Text(
-                      due == null
+                      due == null //if no date selected, show "no due date"
                           ? "No due date"
-                          : "${due!.day}/${due!.month}/${due!.year}",
+                          : "${due!.day}/${due!.month}/${due!.year}", //selected due date
                       style: TextStyle(fontSize: w * 0.035,),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () async {
-                      final picked = await showDatePicker(
+                  TextButton( //pick date button
+                    onPressed: () async { //open date picker dialog
+                      final picked = await showDatePicker(//this is a ready pop dialoge widget flutter gives me
                         context: context,
                         initialDate: due ?? DateTime.now(),
                         firstDate: DateTime.now(), // no past dates
-                        lastDate: DateTime(2100),
-                        builder: (ctx, child) {
+                        lastDate: DateTime(2100),//for future date
+                        builder: (ctx, child) { //
                           return Theme(
-                            data: Theme.of(context).copyWith(
+                            data: Theme.of(context).copyWith( //copyWith creates a copy of the current theme and allows you to override specific properties
                               colorScheme: ColorScheme.light(
-                                primary: pastelBlueDark,
-                                onPrimary: Colors.white,
-                                surface: Colors.white,
-                                onSurface: Colors.black87,
+                                primary: pastelBlueDark,//header background color
+                                onPrimary: Colors.white,//header text color
+                                surface: Colors.white,//content background color
+                                onSurface: Colors.black87,//content text color
                               ),
                             ),
-                            child: child!,
+                            child: child!,//the actual date picker dialog.I'm sure it won't be null so I  use !
                           );
                         },
                       );
-                      if (picked != null) setState(() => due = picked);
+                      if (picked != null) setState(() => due = picked); //the picked date isn't null, then due= picked
                     },
                     child: Text(
                       "Pick Date",
@@ -128,14 +128,14 @@ class _TodoFormState extends State<TodoForm> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          TextButton( //cancel btn
+            onPressed: () => Navigator.pop(context), //close the dialog
             child: Text(
               "Cancel",
               style: TextStyle(fontSize: w * 0.04),
             ),
           ),
-          ElevatedButton(
+          ElevatedButton( //save btn
             style: ElevatedButton.styleFrom(
               backgroundColor: pastelBlueDark,
               foregroundColor: Colors.white,
@@ -144,7 +144,18 @@ class _TodoFormState extends State<TodoForm> {
                 horizontal: w * 0.05,
               ),
             ),
-            onPressed: () {
+            onPressed: () { //to add(if it didn't exist) or update todo (if it existed), then close the dialog
+            final title = titleCtrl.text.trim();  //check if title is empty
+            if (title.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Title is required."),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return; //don't save
+            }
+
               if (widget.existing == null) {
                 context.read<TodoCubit>().addTodo(
                   widget.uid,
@@ -161,7 +172,7 @@ class _TodoFormState extends State<TodoForm> {
                   due,
                 );
               }
-              Navigator.pop(context);
+              Navigator.pop(context);//close the dialog
             },
             child: Text(
               "Save",

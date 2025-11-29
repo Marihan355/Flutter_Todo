@@ -49,19 +49,19 @@ class _TodoItemState extends State<TodoItem> {
       offset: disappear ? const Offset(0.3, 0) : Offset.zero,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 300),
-        opacity: disappear ? 0 : 1,
-        child: InkWell(
+        opacity: disappear ? 0 : 1, //fade out when disappearing
+        child: InkWell( //tap to edit todo when not done
           onTap: isDone
-              ? null
+              ? null //disable tap if done
               : () {
-            showDialog(
+            showDialog(//edit todo dialog
               context: context,
               builder: (_) =>
                   TodoForm(uid: widget.uid, existing: widget.todo),
             );
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 900),
+          child: AnimatedContainer( //showGreenFlash: animation when it's done, but reverting in completed
+            duration: const Duration(milliseconds: 900),//
             padding: EdgeInsets.all(h * 0.015),
             margin: EdgeInsets.symmetric(
               vertical: h * 0.008,
@@ -76,27 +76,27 @@ class _TodoItemState extends State<TodoItem> {
                 BoxShadow(
                   color: Colors.black12,
                   blurRadius: 6,
-                  offset: Offset(0, 3),
+                  offset: Offset(0, 3), 
                 )
               ],
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,//left
               children: [
-                Checkbox(
+                Checkbox( //done checkbox
                   value: (checked || isDone),
                   activeColor: Colors.green,
                   checkColor: Colors.white,
-                  onChanged: (value) {
-                    if (value == null) return;
+                  onChanged: (value) { //done is green
+                    if (value == null) return;//
 
-                    setState(() {
+                    setState(() {//animation on checkbox toggle
                       checked = value;
                       disappear = true;
                     });
 
-                    Future.delayed(const Duration(milliseconds: 900), () {
-                      context.read<TodoCubit>().toggleDone(
+                    Future.delayed(const Duration(milliseconds: 900), () {//delay toggle to match animation
+                      context.read<TodoCubit>().toggleDone( 
                         widget.uid,
                         widget.todo["id"],
                         value,
@@ -107,13 +107,13 @@ class _TodoItemState extends State<TodoItem> {
 
                 SizedBox(width: w * 0.02),
 
-                Expanded(
+                Expanded(//expand to fill space
                   child: DefaultTextStyle.merge(
                     style: TextStyle(
                       //decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Column( //column for title, desc, due date
+                      crossAxisAlignment: CrossAxisAlignment.start,//left top
                       children: [
                         Text(
                           (widget.todo["title"] ?? '').toString(),
@@ -125,8 +125,8 @@ class _TodoItemState extends State<TodoItem> {
 
                         if ((widget.todo["desc"] ?? '')
                             .toString()
-                            .trim()
-                            .isNotEmpty)
+                            .trim()//removes white space before and after 
+                            .isNotEmpty)//
                           Padding(
                             padding: EdgeInsets.only(top: h * 0.005),
                             child: Text(
@@ -154,11 +154,11 @@ class _TodoItemState extends State<TodoItem> {
                     ),
                   ),
                 ),
-                IconButton(
+                IconButton(//delete button
                   icon: Icon(Icons.delete,
                       color: Colors.blue[400], size: w * 0.07),
                   onPressed: () {
-                    showDialog(
+                    showDialog(//"are you sure?" dialog
                       context: context,
                       builder: (_) =>
                           AlertDialog(

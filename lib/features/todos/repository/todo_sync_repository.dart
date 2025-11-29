@@ -5,8 +5,8 @@ import 'package:todo/features/todos/repository/todo_remote_repository.dart';
 import 'todo_local_repository.dart';
 
 class TodoSyncRepository {
-  final TodoRepository remote;
-  final TodoLocalRepository local;
+  final TodoRepository remote; //remote
+  final TodoLocalRepository local; //local
   StreamSubscription<ConnectivityResult>? _connectivitySub; //listen to internet status
 
 //sync repository
@@ -40,6 +40,7 @@ class TodoSyncRepository {
   //add
   Future<void> addTodo(String uid, String title, String desc, DateTime? due) async {
     final id = DateTime.now().millisecondsSinceEpoch.toString(); //local id
+    final created = DateTime.now().millisecondsSinceEpoch;
 
     final todo = {
       "id": id,
@@ -47,12 +48,13 @@ class TodoSyncRepository {
       "title": title,
       "desc": desc,
       "due": due?.millisecondsSinceEpoch,
-      "created": DateTime.now().millisecondsSinceEpoch,
+      "created": created,
       "done": false,
       "isSynced": false,
+      "isDeleted": false,
     };
     await local.saveTodo(todo); //save to local
-    _trySync(uid, todo);   //try pushing into firestore
+    await _trySync (uid, todo);   //try pushing into firestore
   }
 
 //update
@@ -65,20 +67,24 @@ class TodoSyncRepository {
       "desc": desc,
       "due": due?.millisecondsSinceEpoch,
       "isSynced": false,
+      "done": existing["done"] ?? false,
     };
     await local.saveTodo(updated); //update local
-    _trySync(uid, updated); //try updating the firestore
+    await _trySync(uid, updated); //try updating the firestore
   }
 
-//delete
+//delete (soft-delete remote by setting isDeleted or hard delete depending on remove)
   Future<void> deleteTodo(String uid, String id) async {
-    await local.saveTodo({  //deleted in local
-      "id": id,
-      "isDeleted": true,
-      "isSynced": false,
-    });
-    _trySync(uid, {"id": id, "isDeleted": true}); //try deleting in firestore
-  }
+  final existing = local.getTodos().firstWhere((t) => t['id'] == id);
+  final updated = {
+    ...existing,
+    "isDeleted": true,
+    "isSynced": false,
+  };
+  await local.saveTodo(updated);
+  await _trySync(uid, updated); // pass full object
+} //try deleting in firestore
+  
 
 //toggle
   Future<void> toggleDone(String uid, String id, bool done) async {
@@ -90,40 +96,79 @@ class TodoSyncRepository {
       "isSynced": false,
     };
     await local.saveTodo(updated); //save in local
-    _trySync(uid, updated);         //try upadateing firestore
+    await _trySync(uid, updated);         //try upadateing firestore
   }
 
   //  SYNC LOGIC //_trySync
   Future<void> _trySync(String uid, Map<String, dynamic> todo) async {
     final connected = await Connectivity().checkConnectivity();
     if (connected == ConnectivityResult.none) return; //if offline,sync later
+     
+    // If todo only has id + isDeleted (sent from deleteTodo), fetch existing local representation to get uid/created
+    final id = todo["id"];
+    if (id == null) return;
 
+    // If deleted -> remove remote and local
     if (todo["isDeleted"] == true) {
-      await remote.deleteTodo(uid, todo["id"]); //remove from firestore
-      await local.deleteTodo(todo["id"]);   //remove from local
+      // Try to delete remote (if exists) and always remove local copy afterwards
+      try {
+        await remote.deleteTodo(uid, id, soft: false);
+      } catch (_) {
+        // If remote delete fails, attempt soft delete instead
+        try {
+          await remote.deleteTodo(uid, id, soft: true);
+        } catch (_) {}
+      }
+      await local.deleteTodo(id);
       return;
     }
+
    //update or add
-    if (await remote.exists(uid, todo["id"])) {
+    // Ensure we have a full local todo object
+    final localTodos = local.getTodos();
+    final existingLocal = localTodos.firstWhere((t) => t["id"] == id, orElse: () => todo);
+
+    final title = existingLocal["title"] ?? todo["title"] ?? '';
+    final desc = existingLocal["desc"] ?? todo["desc"] ?? '';
+    final due = existingLocal["due"];
+    final created = existingLocal["created"] is int ? existingLocal["created"] as int : DateTime.now().millisecondsSinceEpoch;
+    final done = existingLocal["done"] ?? false;
+
+    // If remote already has same id => update, otherwise add using that id
+    final existsRemotely = await remote.exists(uid, id);
+
+    if (existsRemotely) {
       await remote.updateTodo(
         uid,
-        todo["id"],
-        todo["title"],
-        todo["desc"],
-        _convertDue(todo["due"]),
+        id,
+        title,
+        desc,
+        due != null ? DateTime.fromMillisecondsSinceEpoch(due) : null,
+        done: done,
+        createdMillis: created,
+        isDeleted: false,
       );
-    } else {
+      } else {
       await remote.addTodo(
         uid,
-        todo["title"],
-        todo["desc"],
-        _convertDue(todo["due"]),
+        id,
+        title,
+        desc,
+        due != null ? DateTime.fromMillisecondsSinceEpoch(due) : null,
+        done,
+        created,
       );
     }
-
-    // mark synced
-    todo["isSynced"] = true;
-    await local.saveTodo(todo);
+    // mark synced locally
+    final up = {
+      ...existingLocal,
+      "isSynced": true,
+      "id": id,
+      "done": done,
+      "created": created,
+      "isDeleted": false,
+    };
+    await local.saveTodo(up);
   }
 
 
@@ -137,6 +182,9 @@ class TodoSyncRepository {
 
     // Save all remote todos locally
     for (var todo in remoteTodos) {
+       // Skip remote docs that are marked deleted
+      if (todo['isDeleted'] == true) continue;
+
       final due = todo["due"];
       final created = todo["created"];
 
@@ -154,6 +202,7 @@ class TodoSyncRepository {
             : (created is DateTime ? created.millisecondsSinceEpoch : DateTime.now().millisecondsSinceEpoch),
         "done": todo["done"] ?? false,
         "isSynced": true,
+        "isDeleted": false,
       };
 
       await local.saveTodo(todoMap);//save in local
@@ -162,11 +211,16 @@ class TodoSyncRepository {
 
 //syncAllUnsynced
   Future<void> _syncAllUnsyncedTodos() async {
-    final unsynced = local.getTodos().where((t) => t["isSynced"] == false); //find todos in local here isSynced is false
+    final unsynced = local.getUnsyncedTodos(); //find todos in local here isSynced is false
+   
     for (var todo in unsynced) {
-      final uid = todo["uid"]; //find the userid in remote
-      if (uid != null) {      //if user exists
-        await _trySync(uid, todo);
+      final uidOfTodo = todo["uid"]; //find the userid in remote
+      if (uidOfTodo != null) {  
+        try{await _trySync(uidOfTodo, todo);
+        } catch (e){
+          //errors
+        }    //if user exists
+        
       }
     }
 

@@ -20,14 +20,14 @@ class AppValidation{
       return 'Password must be at least 6 characters';
     }
     // must contain at least one number
-    // if (!RegExp(r'[0-9]').hasMatch(value)) {
-    //   return 'Password must contain at least one number';
-    // }
+    if (!RegExp(r'[0-9]').hasMatch(value)) {
+      return 'Password must contain at least one number';
+    }
 
     // // must contain at least one special character
-    // if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(value)) {
-    //   return 'Password must contain at least one special character';
-    // }
+    if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(value)) {
+      return 'Password must contain at least one special character';
+    }
     return null;
   }
 

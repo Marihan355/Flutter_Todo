@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
           theme: ThemeData(
             fontFamily: 'PlayfairDisplay',
             colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF003366)),
-            useMaterial3: true, //tells flutter to use ne default colors, button shapes and elevations and so on, instead of old material2. like activating the latest material design
+            useMaterial3: true, //tells flutter to use new default colors, button shapes and elevations and so on, instead of old material2. like activating the latest material design
           ),
           initialRoute: "/login",
           routes: {
